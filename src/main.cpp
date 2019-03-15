@@ -37,7 +37,7 @@ int main() {
   double SE = 0; //squared error of CTE
   int numRuns = 0; //number of runs in session
   double kp = 0.5; //default proportional gain
-  double ki = 0.0005;
+  double ki = 0.0005; //default integral gain
   double kd = 40.0; //default derivative gain
   bool debug = false; //debug mode flag
 
