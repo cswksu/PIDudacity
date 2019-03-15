@@ -8,6 +8,7 @@
 // for convenience
 using nlohmann::json;
 using std::string;
+using std::vector;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -32,14 +33,32 @@ string hasData(string s) {
 
 int main() {
   uWS::Hub h;
-
   PID pid;
-  /**
-   * TODO: Initialize the pid variable.
-   */
+  double SE = 0; //squared error of CTE
+  int numRuns = 0; //number of runs in session
+  double kp = 0.5; //default proportional gain
+  double ki = 0.0005;
+  double kd = 40.0; //default derivative gain
+  bool debug = false; //debug mode flag
 
-  h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
+  if (debug) {
+    //allow user to specify gains manually
+    std::cout << "Enter kp: ";
+    std::cin >> kp;
+    std::cout << "Enter ki: ";
+    std::cin >> ki;
+    std::cout << "Enter kd: ";
+    std::cin >> kd;
+  }
+  pid.Init(kp, ki, kd); //initialize controller values
+
+#ifdef UWS_VCPKG //windows version
+  h.onMessage([&pid, &SE, &numRuns, &debug](uWS::WebSocket<uWS::SERVER> *ws, char *data, size_t length, 
                      uWS::OpCode opCode) {
+#else //mac/linux
+  h.onMessage([&pid, &SE, &numRuns, &debug](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+    uWS::OpCode opCode) {
+#endif
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -56,45 +75,87 @@ int main() {
           double cte = std::stod(j[1]["cte"].get<string>());
           double speed = std::stod(j[1]["speed"].get<string>());
           double angle = std::stod(j[1]["steering_angle"].get<string>());
-          double steer_value;
-          /**
-           * TODO: Calculate steering value here, remember the steering value is
-           *   [-1, 1].
-           * NOTE: Feel free to play around with the throttle and speed.
-           *   Maybe use another PID controller to control the speed!
-           */
-          
-          // DEBUG
-          std::cout << "CTE: " << cte << " Steering Value: " << steer_value 
-                    << std::endl;
+          double steer_value=0; //default steering value
+          double throttle; //throttle position
+          SE += cte*cte; //add cte to square error
+          ++numRuns; //increment number of runs
 
+          //maintain speed at ~30 mph
+          if (speed < 30) {
+            throttle = 0.3;
+          }
+          else {
+            throttle = 0;
+          }
+
+          pid.UpdateError(cte);//update error with new CTE
+          steer_value=pid.TotalError(); //return steering angle
+          
+
+          //limit steering to -1 to 1
+          steer_value = std::min(1.0, steer_value);
+          steer_value = std::max(-1.0, steer_value);
+
+          // DEBUG additional code
+          if (debug) {
+            if (numRuns % 1000 == 0) {
+              std::cout << "Num Runs: " << numRuns << std::endl;
+              if (numRuns == 10000) {
+                std::cout << "RMSE CTE: " << pow(SE / numRuns, 0.5) << std::endl;
+              }
+            }
+
+            
+          }
+          
           json msgJson;
           msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.3;
+          msgJson["throttle"] = throttle;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+
+#ifdef UWS_VCPKG //windows
+          ws->send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+#else
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+#endif
         }  // end "telemetry" if
       } else {
         // Manual driving
         string msg = "42[\"manual\",{}]";
+#ifdef UWS_VCPKG
+        ws->send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+#else
         ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+#endif
       }
     }  // end websocket message if
   }); // end h.onMessage
-
+#ifdef UWS_VCPKG
+  h.onConnection([&h](uWS::WebSocket<uWS::SERVER> *ws, uWS::HttpRequest req) {
+#else
   h.onConnection([&h](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
+#endif
     std::cout << "Connected!!!" << std::endl;
   });
-
-  h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code, 
+#ifdef UWS_VCPKG
+  h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> *ws, int code, 
                          char *message, size_t length) {
+    ws->close();
+#else
+  h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code,
+    char *message, size_t length) {
     ws.close();
+#endif
+    
     std::cout << "Disconnected" << std::endl;
   });
 
   int port = 4567;
+#ifdef UWS_VCPKG
+  if (h.listen("127.0.0.1", port)) {
+#else
   if (h.listen(port)) {
+#endif
     std::cout << "Listening to port " << port << std::endl;
   } else {
     std::cerr << "Failed to listen to port" << std::endl;

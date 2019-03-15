@@ -31,6 +31,18 @@ class PID {
    */
   double TotalError();
 
+
+  //get PID errors
+  double getPError();
+  double getDError();
+  double getIError();
+
+
+  //set error
+  void setPGain(double p);
+  void setDGain(double d);
+  void setIGain(double i);
+
  private:
   /**
    * PID Errors
@@ -45,6 +57,8 @@ class PID {
   double Kp;
   double Ki;
   double Kd;
+
+  double prev_CTE;
 };
 
 #endif  // PID_H
