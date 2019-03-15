@@ -1,6 +1,46 @@
 # CarND-Controls-PID
 Self-Driving Car Engineer Nanodegree Program
 
+## Rubric Points
+
+### Compilation
+
+*Your code should compile.*
+
+Code compiles successfully.
+
+### Implementation
+
+*The PID procedure follows what was taught in the lessons.*
+
+I created a PID controller that takes in a CTE and generates a steering output based on the lessons. Proportional, integral, and derivative gains were combined in the PID.cpp file.
+
+### Reflection
+
+*Describe the effect each of the P, I, D components had in your implementation.*
+
+* Increasing the p-gain allowed the system to react much more quickly to turns. However, it also led to overshoot.
+
+* Integral gain seemed to have little effect. This may be due to little noise in the steering system of the simulation.
+
+* Derivative gain provided a sort of damping that cancelled out of the oscillations from the p-gain. However, it also made the car slower to react to turns.
+
+These all seem to concur with what was taught in the class.
+
+*Describe how the final hyperparameters were chosen.*
+
+P and D gains were varied while vehicle speed and integral gain were held constant. The car performed 10,000 steering inputs, and the RMSE of the CTE was logged. The results are charted below in the table, with P-gain on the vertical axis, and D-gain on the horizontal axis. 
+
+![chart](https://github.com/cswksu/PIDudacity/blob/master/images/gain%20tuning.png)
+
+The best combination was found to be a PID gains of 0.5, 0.0005, and 40, respectively.
+
+### Simulation
+
+*The vehicle must successfully drive a lap around the track.*
+
+The car successfully drives the track.
+
 ---
 
 ## Dependencies
